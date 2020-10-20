@@ -1,0 +1,102 @@
+/********************************************************************
+ * README
+ * Authors: Jack Burns (jburns08) & Max Mitchell (mmitch07)
+ * 40image.c, COMP40compressor.c, pixelConverter.c, pixelBitpacker.c,
+ * bitpack.c, WordIO.c
+ * March 5, 2020
+ ******************************************************************/
+
+Compile/run: compile with 'make 40image'. Run executable with ./40image [-c 
+for compression or -d for decompression] [filename].
+
+Acknowledgments: We recieved TA help from Ann-Marie, Danielle Lan, Imogen Eads,
+
+-------------------------------------------------------------------------------
+
+Implementations and Architecture: 
+
+40image.c - This is the driver function for the program. It is meant to be 
+short and modular with clear steps. This program was implemented correctly,
+as it handles command line arguments by opening the file name, directing the
+program to call the functions to either compress or decompress the image, or
+printing to stderr if the command line was incorrect. This does not interact
+with many files directly, as most of the work is handled by another file.
+
+COMP40compressor.h - Interface for COMP40compressor.c
+
+COMP40compressor.c - This program contains modules to set up all the necessary
+data structure to call functions from pixelConverter an other files. It greatly 
+simplifies the driver and hides the implementation from the client. This is 
+implemented correctly, as it contains functions to handle the input, and other
+functions that call each compression and decompression step. This requires
+interactions with the rest of the files in this assignment, as it does all of
+the calls for compression/decompression.
+
+pixelConverter.h - Interface for pixelConverter.c
+
+pixelConverter.c - This file represents several steps in the compression/
+decompression process. Steps have their own apply functions, and they are 
+included in the same file because they share many members. This also contains
+the implementation of three structs necessary for the process. One struct (V)
+represents a single component video color pixel, and can hold information about
+the y, pr, and pb values. Another struct (A) represents a pixel with the 
+average values of 4 V pixels. i.e. it holds the average chroma values and
+quantized cosine values. A third struct (U) is an intermediary between the two.
+It can hold the UArray of type 'V' pixels, as well as keeping track of pb and
+pr values that are averaged, and hold y values in a Hanson stack. Since these
+struct definitions are contained in the implementation, their elements are 
+hidden from the client. For that reason, we implemented functions to return and
+edit values in these structs. 
+The first step in this file is to convert all the  rgb values, stored in the
+Pnm_ppm struct, to component video color pixels, by doing the necessary
+calculations, and putting them into a value of type V. The decompression step 
+to this does the inverse. It reverses the calculations on the cvc values, and
+adds them to an rgb pixel. A helper function determines if the converted rgb 
+values are in the range of 0 - 255, and rounds them up or down if they are.
+The chroma averages and cosine transformations happen in the next apply 
+function. It takes in the video component color array, and, using the U struct, 
+stores pb, pr, and y values are  until the end of a 2x2 block are reached (as 
+this step is mapped in block order). At this point, two new functions are 
+called. One computes the average pb and pr values, while the next does the 
+cosine transformations. There is also one apply function that reverse both of
+these calculations. 
+
+pixelBitpacker.h - Interface for pixelBitpacker.c
+
+pixelBitpacker.c - This calls bitpack fucntions to create one codeword. The 
+only member from other files that it requires is the UArray of pixels that
+contain the average pb and pr values, as well as the quantized a, b, c, and d
+values. One apply function gets theses values from a given pixel, checks if 
+each one can fit in a uint32_t, and changes their values to fit if they can 
+not. It then packs all the values into one uint32_t word. The end result is
+a UArray2 of bitpacked code words. The other apply function does the opposite,
+and extracts every value from a ceach code word, and puts those values in an
+A pixel. The end result of this is a UArray2 of A pixels. 
+
+bitpack.h - Interface for bitpack.c
+
+bitpack.c - This the implementation of bitpack.h. It is implemented correctly,
+as it has functions to check if a given signed or unsigned value of a specified
+width can fit into a codeword. Additionally, using masks, we implemented 
+functions to add values to starting at a given least significant bit, and 
+return that value.
+
+WordIO.h - Interface for WordIO.c
+
+WordIO.c - This file represents the module that writes the array of codewords
+to stdout (final compression step), as well as read and store all of the 
+codewords from a file (first decompression step). This was implemented 
+correctly, as it includes one function that writes the header with the width
+and height of the original image and then maps the UArray2 of codewords to an
+apply function that writes them to stdout byte by byte in big endian order.
+Conversely, the decompression step contains a function that reads the file 
+header, creates a UArray2, and calls an apply function that reads each 
+codeword, and puts them in the UArray2. This file needs access to all the 
+bitpack functions, but none of the structs used throughout the rest of the 
+compression. 
+
+_______________________________________________________________________________
+
+Time spent analysing problems - 12 hours
+
+Time spent solving problems (post analysis) - 24 hours
